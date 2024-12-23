@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -5,36 +8,47 @@ import {
     ListToolsRequestSchema
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-
-import { ConnectToMinecraftServerSchema } from "./schemas.js";
-import { ConnectionResult, MinecraftServer } from "./minecraftServer.js";
+import { MinecraftServer } from "./minecraftServer.js";
+import { 
+    ConnectToMinecraftServerSchema, 
+    DisconnectFromMinecraftServerSchema, 
+    SendChatMessageSchema 
+} from "./schemas.js";
 
 
 const minecraftServer = new MinecraftServer();
 
-const server = new Server(
-    {
-        name: "minecraft-server",
-        version: "0.0.1-alpha-1"
-    },
-    { 
-        capabilities: { tools: {} } 
-    }
+const mcpServer = new Server(
+    { name: "minecraft-server", version: "0.0.1-alpha1" }, 
+    { capabilities: { tools: {} } }
 );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
         {
             name: "connect",
-            description: "Connect to the minecraft server",
+            description: `
+                Connect to the minecraft server. 
+                If the user didn't specify a name, use 'Claude'`,
             inputSchema: zodToJsonSchema(ConnectToMinecraftServerSchema)
+        },
+        {
+            name: "disconnect",
+            description: `
+                Disconnect from the minecraft server.
+                If the user didn't specify a message, choose an appropriate one yourself.`,
+            inputSchema: zodToJsonSchema(DisconnectFromMinecraftServerSchema)
+        },
+        {
+            name: "chat",
+            description: `
+                Send a chat message to the minecraft server`,
+            inputSchema: zodToJsonSchema(SendChatMessageSchema)
         }
     ]
 }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
         if (!request.params.arguments) {
             throw new Error("Arguments are required");
@@ -42,10 +56,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         switch (request.params.name) {
             case "connect":
-                const args = ConnectToMinecraftServerSchema.parse(request.params.arguments);
-                const name = args.name;
-                const result: ConnectionResult = await minecraftServer.connect(name);
-                return result;
+                const name = ConnectToMinecraftServerSchema.parse(request.params.arguments).name;
+                return await minecraftServer.connect(name);
+
+            case "disconnect":
+                const message = DisconnectFromMinecraftServerSchema.parse(request.params.arguments).message;
+                return await minecraftServer.disconnect(message);
+
+            case "chat":
+                const chatMessage = SendChatMessageSchema.parse(request.params.arguments).message;
+                return await minecraftServer.chat(chatMessage);
+
             default:
                 throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -64,7 +85,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function runServer() {
     const transport = new StdioServerTransport();
-    await server.connect(transport);
+    await mcpServer.connect(transport);
 }
 
 runServer().catch((error) => {

@@ -2,28 +2,49 @@ import {
     Bot, 
     createBot 
 } from "mineflayer";
-
-export type ConnectionResult =
-    | { success: true; }
-    | { success: false; error: string };
+import { Result, resultFrom } from "./types.js";
 
 export class MinecraftServer {
     bot: Bot | undefined;
     
-    async connect(name: string): Promise<ConnectionResult> {
+    async connect(name: string): Promise<Result> {
         try {
-            const bot: Bot = createBot({
+            this.bot = createBot({
                 host: "localhost",
                 port: 25565,
                 username: name
             });
-            this.bot = bot;
             return { success: true };
         } catch (error) {
-            return { 
-                success: false, 
-                error: (error as Error).message 
-            };
+            return resultFrom(error as Error); 
+        }
+    }
+
+    async disconnect(message: string): Promise<Result> {
+        if (!this.bot) {
+            return({ success: false, error: "Not connected to the Minecraft server" });
+        }
+
+        try {
+            this.bot.chat(message);
+            this.bot.quit();
+            this.bot = undefined;
+            return { success: true };
+        } catch (error) {
+            return resultFrom(error as Error);
+        }
+    }
+
+    async chat(message: string): Promise<Result> {
+        if (!this.bot) {
+            return({ success: false, error: "Not connected to the Minecraft server" });
+        }
+
+        try {
+            this.bot.chat(message);
+            return { success: true };
+        } catch (error) {
+            return resultFrom(error as Error);
         }
     }
 }
