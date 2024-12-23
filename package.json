@@ -1,0 +1,28 @@
+{
+  "name": "minecraft-mcp-server",
+  "version": "0.0.1-alpha1",
+  "author": "Dennis Traub",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "minecraft-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && shx chmod +x dist/*.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "mineflayer": "^4.23.0",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "shx": "^0.3.4",
+    "typescript": "^5.7.2"
+  }
+}
